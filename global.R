@@ -2,6 +2,7 @@ library(shiny)
 library(shinydashboard)
 library(tidyverse)
 library(nnet)
+library(class)
 
 cancer <- read.csv("risk_factors_cervical_cancer.csv")
 
