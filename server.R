@@ -28,17 +28,17 @@ function(input, output,session) {
         input_data1 =  readr::read_csv(input$file1$datapath, col_names = TRUE)
         input_data1 <- inputdata1 %>% 
           mutate_if(is.numeric, as.factor)
-        prediction = predict(model, input_data1)
-        
+        prediction = predict(my_model1, input_data1)
+        return(prediction)
       })
     }
   })
   
   output$Prediction <- renderValueBox({
     valueBox(
-      predictions, "Prediction", icon = icon("virus"),
-      color = "blue",
-      width = 6
+      predictions(), icon = icon("virus"),
+      "Predictions", 
+      color = "blue"
     )
   })
   
@@ -79,17 +79,20 @@ function(input, output,session) {
                  Hormonal.Contraceptives..years. = as.numeric(Hormonal.Contraceptives..years.),
                  STDs..Number.of.diagnosis = as.integer(STDs..Number.of.diagnosis)) 
         
-        prediction = predict(my_model, input_data2)
-        
+        input_data_x <- input_data2 %>% 
+          select_if(is.numeric)
+        input_data_y <- input_data2 %>% 
+          select_if(is.factor)
+        prediction = knn(train = train_x, test = input_data_x, cl = train_y$Biopsy, k = 7)
+        return(prediction)
       })
     }
   })
   
-  output$Prediction <- renderValueBox({
+  output$Prediction2 <- renderValueBox({
     valueBox(
-      predictions2, "Prediction", icon = icon("bacterium"),
-      color = "blue",
-      width = 6
+      predictions2(), "Predictions", icon = icon("bacterium"),
+      color = "blue"
     )
   })
     

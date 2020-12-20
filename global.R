@@ -49,6 +49,31 @@ cancerfinal <- cancerfinal %>%
   mutate(STDs..Time.since.first.diagnosis = as.integer(STDs..Time.since.first.diagnosis)) %>% 
   mutate(STDs..Time.since.last.diagnosis = as.integer(STDs..Time.since.last.diagnosis))
 
+library(rsample)
+set.seed(100)
+
+
+idx <- initial_split(data = cancerfinal, strata = Biopsy, prop = 0.7)
+test <- testing(idx)
+train <- training(idx)
+
+colnames(cancerfinal)
+
+
+test_x <- test %>% 
+  select_if(is.numeric)
+test_y <- test %>%
+  select_if(is.factor)
+train_x <- train %>% 
+  select_if(is.numeric)
+train_y <- train %>% 
+  select_if(is.factor)
+
+train_x <-  scale(train_x)
+test_x <- scale(test_x,
+                center = attr(train_x, "scaled:center"),
+                scale = attr(train_x, "scaled:scale"))
+
 my_model <- readRDS("knnmodel.rds")
 
 cd <- read_csv("Cleaned-Data.csv")
@@ -80,9 +105,10 @@ index = sample(seq_len(nrow(cd1)), size = samplesize)
 datatrain = cd1[index,]
 datatest = cd1[-index,]
 
-model = multinom(ordseverity ~ ., data = datatrain)
 
-empty_df = cd1[FALSE,]
+my_model <- readRDS("knnmodel.rds")
+
+my_model1 <- readRDS("model.rds")
 
 
 
