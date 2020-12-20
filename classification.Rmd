@@ -1,0 +1,73 @@
+---
+title: "Classification for COVID-19 Symptoms"
+output: html_document
+---
+
+```{r preparation, echo = F}
+library(dplyr)
+library(tidyr)
+library(car) # for linearHypothesis()
+library(ggplot2) # optional. we expect you to know base graphics, but allow ggplot if you find it easier
+library(psych) # for pairs.panels()
+library(factoextra) # for fviz_cluster()
+library(wooldridge)
+library(checkmate)
+library(caret)
+library(MASS)
+library(nnet)
+
+library(readr)
+cd <- read_csv("Cleaned-Data.csv")
+
+
+```
+
+
+
+```{r work, echo = T}
+
+#removing countries which is a categorical variable
+cd1 = data.frame(cd, check.names = T) %>% subset(select = -c(Country, None_Sympton, None_Experiencing))
+
+cd1 <-cd1 %>% 
+  mutate_if(is.numeric, as.factor)
+
+#change the severity into a new variable, 1 = None, 2 = Mild, 3 = Moderate, 4 = Severe
+cd1$severity = ifelse(cd1$Severity_None==1, 1, ifelse(cd1$Severity_Mild==1, 2, ifelse(cd1$Severity_Moderate==1, 3, ifelse(cd1$Severity_Severe==1, 4, 0))))
+
+#change severity into factor variable
+cd1$ordseverity = factor(cd1$severity, labels = c('none', 'mild', 'moderate', 'severe'), order = T)
+
+cd1 <- cd1 %>% 
+  mutate(ordseverity = as.factor(ordseverity))
+
+#Dividing data into training and test set
+#Random sampling 
+samplesize = 0.70*nrow(cd1)
+set.seed(100)
+index = sample(seq_len(nrow(cd1)), size = samplesize)
+#Creating training and test set 
+datatrain = cd1[index,]
+datatest = cd1[-index,]
+
+model = multinom(ordseverity ~ ., data = datatrain)
+
+predicted <- predict(model, newdata = datatest, "class")
+confusionMatrix(data = predicted, reference = datatest$ordseverity, positive = "none")
+
+
+```
+
+```{r}
+saveRDS(model, "model.rds")
+my_model1 <- readRDS("model.rds")
+```
+
+```{r}
+empty_df = cd1[FALSE,]
+
+empty_df = subset(empty_df, select = -c(Severity_Mild, Severity_None, Severity_Severe, Severity_Moderate, severity) )
+colnames(empty_df)
+```
+
+

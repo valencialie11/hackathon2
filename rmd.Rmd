@@ -1,0 +1,204 @@
+---
+title: "hackathon"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+#Import dataset and preprocessing
+
+```{r}
+cancer <- read.csv("risk_factors_cervical_cancer.csv")
+
+cancer
+```
+
+```{r}
+cancer <- cancer %>% 
+  mutate_if(is.character, as.factor) %>% 
+  mutate_if(is.integer, as.factor)
+
+
+cancer <- cancer %>% 
+  mutate(Number.of.sexual.partners = as.integer(Number.of.sexual.partners),
+         First.sexual.intercourse = as.integer(First.sexual.intercourse),
+         Num.of.pregnancies = as.integer(Num.of.pregnancies),
+         Smokes..years. = as.numeric(Smokes..years.),
+         Smokes..packs.year. = as.numeric(Smokes..packs.year.),
+         IUD..years. = as.numeric(IUD..years.),
+         STDs..number. = as.integer(STDs..number.),
+         Age = as.integer(Age),
+         Hormonal.Contraceptives..years. = as.numeric(Hormonal.Contraceptives..years.),
+         STDs..Number.of.diagnosis = as.integer(STDs..Number.of.diagnosis)) 
+
+cancer[cancer == "?"] <- NA
+
+
+sum(is.na(cancer$STDs..Time.since.first.diagnosis))
+sum(is.na(cancer$STDs..Time.since.last.diagnosis))
+
+
+cancerfinal <- drop_na(cancer)
+
+
+cancerfinal$Smokes <- factor(cancerfinal$Smokes)
+cancerfinal$Hormonal.Contraceptives <- factor(cancerfinal$Hormonal.Contraceptives)
+cancerfinal$IUD <- factor(cancerfinal$IUD)
+cancerfinal$STDs <- factor(cancerfinal$STDs)
+cancerfinal$STDs.cervical.condylomatosis <- factor(cancerfinal$STDs.cervical.condylomatosis)
+cancerfinal$STDs.condylomatosis <- factor(cancerfinal$STDs.condylomatosis)
+cancerfinal$STDs.vaginal.condylomatosis <- factor(cancerfinal$STDs.vaginal.condylomatosis)
+cancerfinal$STDs.vulvo.perineal.condylomatosis <- factor(cancerfinal$STDs.vulvo.perineal.condylomatosis)
+cancerfinal$STDs.syphilis <- factor(cancerfinal$STDs.syphilis)
+cancerfinal$STDs.pelvic.inflammatory.disease <- factor(cancerfinal$STDs.pelvic.inflammatory.disease)
+cancerfinal$STDs.genital.herpes <- factor(cancerfinal$STDs.genital.herpes)
+cancerfinal$STDs.molluscum.contagiosum <- factor(cancerfinal$STDs.molluscum.contagiosum)
+cancerfinal$STDs.AIDS <- factor(cancerfinal$STDs.AIDS)
+cancerfinal$STDs.HIV <- factor(cancerfinal$STDs.HIV)
+cancerfinal$STDs.Hepatitis.B <- factor(cancerfinal$STDs.Hepatitis.B)
+cancerfinal$STDs.HPV <- factor(cancerfinal$STDs.HPV)
+
+cancerfinal <- cancerfinal %>% 
+  mutate(STDs..Time.since.first.diagnosis = as.integer(STDs..Time.since.first.diagnosis)) %>% 
+  mutate(STDs..Time.since.last.diagnosis = as.integer(STDs..Time.since.last.diagnosis))
+
+cancerfinal <- subset(cancerfinal, select = -c(Dx.Cancer,
+                                               Dx,
+                                               Dx.CIN,
+                                               Dx.HPV,
+                                               Hinselmann,
+                                               Schiller,
+                                               Citology))
+```
+
+#Distribution of data analysis
+
+```{r}
+summary(cancerfinal)
+```
+Since the numeric ranges between predictors vary greatly, hence we would need to process the data in order to standardise them into the same range using Z score standardisation to build a kNN model.
+
+#Cross Validation
+
+```{r}
+library(rsample)
+set.seed(100)
+
+
+idx <- initial_split(data = cancerfinal, strata = Biopsy, prop = 0.7)
+test <- testing(idx)
+train <- training(idx)
+
+colnames(cancerfinal)
+
+```
+
+
+#kNN model
+
+```{r}
+test_x <- test %>% 
+  select_if(is.numeric)
+test_y <- test %>%
+  select_if(is.factor)
+train_x <- train %>% 
+  select_if(is.numeric)
+train_y <- train %>% 
+  select_if(is.factor)
+```
+## Standardisation
+```{r}
+train_x <-  scale(train_x)
+test_x <- scale(test_x,
+      center = attr(train_x, "scaled:center"),
+      scale = attr(train_x, "scaled:scale"))
+```
+
+## Optimum K
+```{r}
+sqrt(nrow(train_x))
+```
+Since the optimum K needs to be an odd number to prevent having tied results, we will round it up to k = 7.
+
+```{r}
+library(class)
+knnmodel <- knn(train = train_x, test = test_x, cl = train_y$Biopsy, k = 7)
+```
+
+## Confusion Matrix
+
+```{r}
+library(caret)
+confusionMatrix(data = knnmodel, reference = test_y$Biopsy, positive = "1")
+```
+Accuracy is at 83.3%.
+
+#Naive Bayes
+
+```{r}
+library(e1071)
+model_naive <- naiveBayes(Biopsy ~., train, laplace = 1)
+pred <- predict(model_naive, test, type = "class")
+prob <- predict(model_naive, test, type = "raw")
+
+model_naive
+
+```
+
+##Confusion Matrix
+
+```{r}
+library(caret)
+confusionMatrix(data = pred, reference = test$Biopsy, positive = "1")
+```
+In this case, the accuracy of the model is 66.7%.
+
+## ROC/AUC
+
+
+```{r}
+library(ROCR)
+roc <- prediction(predictions = prob[,2], labels = as.numeric(ifelse(test$Biopsy == "1", 1, 0)))
+perf <- performance(prediction.obj = roc, measure = "tpr", x.measure = "fpr")
+plot(perf)
+auc <- performance(roc, "auc")
+auc@y.values
+```
+
+One way of interpreting AUC is as the probability that the model ranks a random positive example more highly than a random negative example. Hence since the probability is 0.64 (which is quite close to 1), we can tell that this model has succeeded well in predicting future data for cervical cancer detection. 
+
+#Decision Tree
+```{r fig.height=10, message=FALSE, warning=FALSE}
+library(partykit)
+model_dt <- ctree(formula = Biopsy ~., data = train)
+
+plot(model_dt, type = "simple")
+```
+
+```{r}
+pred1 <- predict(model_dt, test, type = "response")
+pred2 <- predict(model_dt, train, type = "response")
+```
+
+```{r}
+confusionMatrix(pred1, reference = test$Biopsy, positive = "1")
+```
+
+Accuracy of this model is 66.7%
+
+
+Based on all three models, we concluded that the model that did the best is kNN as it has the highest accuracy (we're looking at this specific metric because it is more dangerous to have false negative than false positive!)
+
+```{r}
+saveRDS(knnmodel, "knnmodel.rds")
+my_model <- readRDS("knnmodel.rds")
+```
+
+
+
