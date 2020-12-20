@@ -36,7 +36,7 @@ function(input, output,session) {
   
   output$Prediction <- renderValueBox({
     valueBox(
-      predictions(), icon = icon("virus"),
+      predictions(),
       "Predictions", 
       color = "blue"
     )
@@ -91,7 +91,7 @@ function(input, output,session) {
   
   output$Prediction2 <- renderValueBox({
     valueBox(
-      predictions2(), "Predictions", icon = icon("bacterium"),
+      predictions2(), "Predictions",
       color = "blue"
     )
   })
