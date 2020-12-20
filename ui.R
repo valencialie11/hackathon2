@@ -102,7 +102,7 @@ dashboardPage(
                          fileInput('file1', em('Upload test data in csv format ',style="text-align:center;color:blue;font-size:150%"),multiple = FALSE,
                                    accept=c('.csv')),
                          tableOutput("sample_input_data"),
-                         valueBoxOutput("Prediction"))))),
+                         valueBoxOutput("Prediction", width = 6))))),
                 tabPanel("Cervical Cancer", fluidRow(
                   tags$h4("Please upload your data according to the sample csv and get back predictions based on the likelihood
                           of you getting Cervical Cancer based on your current risk factors!", style="font-size:150%"
@@ -112,7 +112,7 @@ dashboardPage(
                            fileInput('file2', em('Upload test data in csv format ',style="text-align:center;color:blue;font-size:150%"),multiple = FALSE,
                                      accept=c('.csv')),
                            tableOutput("sample_input_data2"),
-                           valueBoxOutput("Prediction2")))))
+                           valueBoxOutput("Prediction2", width = 6)))))
       ))),
       tabItem(tabName = "subscribe",
               h2("Subscribe to our email for more medical news daily!", align = "center", style = "font-family: 'times'; font-si16pt"),
